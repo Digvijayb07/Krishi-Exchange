@@ -40,6 +40,7 @@ interface Profile {
   trust_score: number | null;
   total_completed: number | null;
   total_failed: number | null;
+  photo_url?: string | null;
 }
 
 export default function ProfilePage() {
@@ -52,6 +53,8 @@ export default function ProfilePage() {
   const [userCreatedAt, setUserCreatedAt] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
   const [avatarLetter, setAvatarLetter] = useState("U");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Editable fields
   const [fullName, setFullName] = useState("");
@@ -96,7 +99,7 @@ export default function ProfilePage() {
     const { data } = await supabase
       .from("profiles")
       .select(
-        "full_name, role, phone, phone_verified, village, district, state, trust_score, total_completed, total_failed",
+        "full_name, role, phone, phone_verified, village, district, state, trust_score, total_completed, total_failed, photo_url",
       )
       .eq("id", user.id)
       .single();
@@ -109,6 +112,7 @@ export default function ProfilePage() {
       setVillage(p.village ?? "");
       setDistrict(p.district ?? "");
       setState(p.state ?? "");
+      setPhotoUrl(p.photo_url ?? null);
     } else {
       setFullName(displayName);
     }
@@ -211,6 +215,47 @@ export default function ProfilePage() {
     }
     setOtpLoading(false);
   };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  try {
+    setUploadingPhoto(true);
+
+    if (!e.target.files || e.target.files.length === 0) return;
+
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+
+    // ✅ FIXED: use folder = userId
+    const filePath = `${userId}/${Math.random()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("krishi-user-photos")
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    // ✅ FIXED: same bucket
+    const { data } = supabase.storage
+      .from("krishi-user-photos")
+      .getPublicUrl(filePath);
+
+    const { error: updateError } = await supabase.from("profiles").upsert(
+      { id: userId, photo_url: data.publicUrl },
+      { onConflict: "id" }
+    );
+
+    if (updateError) throw updateError;
+
+    setPhotoUrl(data.publicUrl);
+    await loadProfile();
+
+  } catch (error: any) {
+    console.error(error);
+    alert("Error uploading photo: " + error.message);
+  } finally {
+    setUploadingPhoto(false);
+  }
+};
 
   const openOtpDialog = () => {
     setOtpStep("phone");
@@ -317,8 +362,12 @@ export default function ProfilePage() {
           <CardContent className="relative px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
             {/* Avatar */}
             <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6 -mt-12 sm:-mt-16 mb-6">
-              <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground text-4xl sm:text-5xl font-bold shadow-xl border-4 border-background">
-                {avatarLetter}
+              <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground text-4xl sm:text-5xl font-bold shadow-xl border-4 border-background overflow-hidden relative">
+                {photoUrl ? (
+                  <img src={photoUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  avatarLetter
+                )}
               </div>
               <div className="pb-2 flex-1 text-center sm:text-left">
                 <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 flex-wrap justify-center sm:justify-start">
@@ -449,17 +498,39 @@ export default function ProfilePage() {
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2 sm:gap-3 p-3 bg-background rounded-lg border border-border">
-                <span className="text-xl sm:text-2xl">🆔</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">KYC</p>
-                  <p className="text-xs sm:text-sm font-medium text-foreground">
-                    Coming Soon
-                  </p>
+              <div className="flex flex-col gap-2 p-3 bg-background rounded-lg border border-border">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="text-xl sm:text-2xl">📸</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Photo</p>
+                    <p className="text-xs sm:text-sm font-medium text-foreground">
+                      {photoUrl ? "Uploaded" : "Required"}
+                    </p>
+                  </div>
+                  {photoUrl ? (
+                    <Badge className="bg-green-500/10 text-green-600 border border-green-500/30 text-[10px]">
+                      Verified
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-orange-500/10 text-orange-600 border border-orange-500/30 text-[10px]">
+                      Pending
+                    </Badge>
+                  )}
                 </div>
-                <Badge className="bg-muted text-muted-foreground border border-border text-[10px]">
-                  N/A
-                </Badge>
+                <div>
+                  <Button asChild size="sm" variant="outline" className="w-full text-xs h-8 relative overflow-hidden" disabled={uploadingPhoto}>
+                    <label className="cursor-pointer">
+                      {uploadingPhoto ? "Uploading..." : (photoUrl ? "Change Photo" : "Upload Photo")}
+                      <Input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handlePhotoUpload} 
+                        disabled={uploadingPhoto}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                    </label>
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -487,7 +558,9 @@ export default function ProfilePage() {
                   }>
                   Phone {phoneVerified ? "✓" : "○"}
                 </span>
-                <span>KYC ○</span>
+                <span className={photoUrl ? "text-green-600 font-semibold" : ""}>
+                  Photo {photoUrl ? "✓" : "○"}
+                </span>
               </div>
             </div>
           </CardContent>
