@@ -234,7 +234,7 @@ export default function MarketplacePage() {
   });
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
-  const [showSellerManualAddress, setShowSellerManualAddress] = useState(false);
+  const [showSellerManualAddress, setShowSellerManualAddress] = useState(false); 
 
   // Buy-now modal
   const [showBuyModal, setShowBuyModal] = useState(false);
@@ -253,12 +253,37 @@ export default function MarketplacePage() {
   useEffect(() => {
     async function loadMandi() {
       try {
-        const res = await fetch(
-          "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd000001a7e2391ebe434c456bf495fca2f0faad&format=json&limit=6000",
-        );
-        const data = await res.json();
-        if (data.records?.length) {
-          setMandiRecords(data.records);
+        let cachedRecords: any[] = [];
+        let lastFetchTime = 0;
+        const cachedStr = localStorage.getItem("mandi_prices_cache");
+        
+        if (cachedStr) {
+          const parsed = JSON.parse(cachedStr);
+          cachedRecords = parsed.records || [];
+          lastFetchTime = parsed.timestamp || 0;
+          setMandiRecords(cachedRecords);
+        }
+
+        const now = Date.now();
+        // Fetch if older than 12 hours
+        if (now - lastFetchTime > 12 * 60 * 60 * 1000 || cachedRecords.length === 0) {
+          const res = await fetch(
+            "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd000001a7e2391ebe434c456bf495fca2f0faad&format=json&limit=6000",
+          );
+          const data = await res.json();
+          if (data.records?.length) {
+            // Merge maps by state+commodity to accumulate
+            const mergedMap = new Map();
+            cachedRecords.forEach(r => mergedMap.set(r.commodity + "-" + r.state, r));
+            data.records.forEach((r: any) => mergedMap.set(r.commodity + "-" + r.state, r));
+            
+            const newRecords = Array.from(mergedMap.values());
+            setMandiRecords(newRecords);
+            localStorage.setItem("mandi_prices_cache", JSON.stringify({
+              timestamp: now,
+              records: newRecords
+            }));
+          }
         }
       } catch (err) {
         console.error("Failed to fetch mandi prices", err);
@@ -297,6 +322,41 @@ export default function MarketplacePage() {
         source: exactLocation ? `${match.market}, ${match.state}` : `National Avg`,
       };
     }
+    
+    // Baseline fallback for common crops entirely missing from API
+    const BASELINE_PRICES: Record<string, number> = {
+      wheat: 3000,
+      rice: 4000,
+      corn: 2500,
+      maize: 2500,
+      sugarcane: 400, // ≈ ₹4/kg
+      cotton: 7000,
+      vegetables: 3000,
+      pulses: 8000,
+      dal: 8000,
+      spices: 15000,
+      fruits: 5000,
+      tomato: 3000,
+      potato: 2000,
+      onion: 2500,
+      apple: 10000,
+      banana: 3500,
+    };
+
+    for (const [key, pricePerQuintal] of Object.entries(BASELINE_PRICES)) {
+      if (lowerCrop.includes(key)) {
+        const min = ((pricePerQuintal * 0.9) / 100).toFixed(1);
+        const max = ((pricePerQuintal * 1.1) / 100).toFixed(1);
+        const modal = (pricePerQuintal / 100).toFixed(1);
+        return {
+          range: `₹${min} - ₹${max}/kg`,
+          modal: `₹${modal}/kg`,
+          modalNumber: Number(modal),
+          source: `Baseline Estimate`,
+        };
+      }
+    }
+
     return null;
   };
 
