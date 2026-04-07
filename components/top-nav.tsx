@@ -82,7 +82,7 @@ export function TopNav({ onMenuClick }: TopNavProps) {
 
   return (
     <header className="glass-nav sticky top-0 z-40 shadow-sm shadow-green-900/5">
-      <div className="h-[68px] px-4 sm:px-6 lg:px-8 flex items-center justify-end gap-3 sm:gap-5 w-full">
+      <div className="h-[68px] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sm:gap-5 w-full">
         {/* Hamburger Menu Button */}
         <button
           onClick={onMenuClick}
@@ -104,7 +104,7 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         </button>
 
         {/* Right Section */}
-        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-auto">
           {/* Notifications */}
           <NotificationBell userId={user?.id ?? null} />
           <div className="hidden sm:flex items-center gap-3">
