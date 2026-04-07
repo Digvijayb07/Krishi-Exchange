@@ -246,6 +246,58 @@ export default function MarketplacePage() {
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
 
+  // Mandi API (Market value suggestions)
+  const [mandiRecords, setMandiRecords] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadMandi() {
+      try {
+        const res = await fetch(
+          "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd000001a7e2391ebe434c456bf495fca2f0faad&format=json&limit=6000",
+        );
+        const data = await res.json();
+        if (data.records?.length) {
+          setMandiRecords(data.records);
+        }
+      } catch (err) {
+        console.error("Failed to fetch mandi prices", err);
+      }
+    }
+    loadMandi();
+  }, []);
+
+  const getSuggestedPrice = (cropName: string, region: string) => {
+    if (!cropName || typeof cropName !== "string") return null;
+    const lowerCrop = cropName.toLowerCase();
+    const lowerRegion = region ? region.toLowerCase() : "";
+
+    let exactLocation = true;
+    let match = mandiRecords.find(
+      (r) =>
+        r.commodity.toLowerCase().includes(lowerCrop) &&
+        r.state.toLowerCase().includes(lowerRegion),
+    );
+
+    if (!match) {
+      exactLocation = false;
+      match = mandiRecords.find((r) =>
+        r.commodity.toLowerCase().includes(lowerCrop),
+      );
+    }
+
+    if (match) {
+      const min = (match.min_price / 100).toFixed(1);
+      const max = (match.max_price / 100).toFixed(1);
+      const modal = (match.modal_price / 100).toFixed(1);
+      return {
+        range: `₹${min} - ₹${max}/kg`,
+        modal: `₹${modal}/kg`,
+        source: exactLocation ? `${match.market}, ${match.state}` : `National Avg`,
+      };
+    }
+    return null;
+  };
+
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRegion, setFilterRegion] = useState("");
@@ -1097,6 +1149,17 @@ export default function MarketplacePage() {
                   </div>
 
                   <div className="mt-4 flex gap-2 flex-wrap">
+                    {listing.listing_type === "crop" && (() => {
+                      const sugg = getSuggestedPrice(listing.crop_name, listing.location);
+                      if (!sugg) return null;
+                      return (
+                        <div className="w-full mb-2">
+                          <span className="text-xs text-green-700 bg-green-50/80 px-2 py-1 rounded-md border border-green-200">
+                            📊 Market Value: {sugg.modal} ({sugg.source})
+                          </span>
+                        </div>
+                      );
+                    })()}
                     {listing.listing_type === "crop" &&
                       listing.quality_grade && (
                         <Badge variant="outline" className="bg-secondary/50">
@@ -1334,12 +1397,23 @@ export default function MarketplacePage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    {listForm.listingType === "tool"
-                      ? "Price (₹)"
-                      : `Price per ${listForm.unit} (₹)`}{" "}
-                    <span className="text-destructive">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium text-foreground">
+                      {listForm.listingType === "tool"
+                        ? "Price (₹)"
+                        : `Price per ${listForm.unit} (₹)`}{" "}
+                      <span className="text-destructive">*</span>
+                    </label>
+                    {listForm.listingType === "crop" && listForm.cropName && listForm.unit === "kg" && (() => {
+                      const suggestion = getSuggestedPrice(listForm.cropName, listForm.region);
+                      if (!suggestion) return null;
+                      return (
+                        <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200" title={`Based on Mandi prices from ${suggestion.source}`}>
+                          💡 Market Avg: {suggestion.modal}
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <Input
                     name="price"
                     type="number"
@@ -1794,6 +1868,17 @@ export default function MarketplacePage() {
                       )}
                   </div>
                 </div>
+                {selectedListing.listing_type === "crop" && (() => {
+                  const sugg = getSuggestedPrice(selectedListing.crop_name, selectedListing.location);
+                  if (!sugg) return null;
+                  return (
+                    <div className="bg-green-50/50 p-2.5 rounded-lg border border-green-100/60 flex items-center justify-between text-sm shadow-sm mt-1 mb-2 w-full">
+                      <span className="text-green-800 font-medium tracking-tight">📊 Agmarknet Market Avg:</span>
+                      <span className="font-bold text-green-700">{sugg.modal} <span className="font-normal text-[11px] text-green-600">({sugg.source})</span></span>
+                    </div>
+                  );
+                })()}
+
 
                 {buyError && (
                   <div className="px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
