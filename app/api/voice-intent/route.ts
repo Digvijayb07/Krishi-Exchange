@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
+
+  type VoiceIntent = {
+  intent: string
+  query?: string
+  question?: string
+  answer?: string
+ }
+
   try {
     const { text } = await req.json()
 
@@ -88,6 +96,14 @@ Output: {"intent":"search_product","query":"tomato"}
 User: "buy onions"
 Output: {"intent":"search_product","query":"onion"}
 
+User: "current cost of onions"
+Output:
+{"intent":"general_question","question":"current cost of onions"}
+
+User: "what is today's onion price"
+Output:
+{"intent":"general_question","question":"today onion price"}
+
 Do NOT wrap JSON in markdown or code blocks.
 `
 
@@ -121,11 +137,10 @@ Do NOT wrap JSON in markdown or code blocks.
     const content = data.choices?.[0]?.message?.content || ""
 
     console.log("LLM CONTENT:", content)
-    console.log("LLM CONTENT:", content)
 
     const match = content.match(/\{[\s\S]*\}/)
 
-    let parsed = { intent: "none" }
+    let parsed: VoiceIntent = { intent: "none" }
 
     if (match) {
       try {
@@ -133,6 +148,45 @@ Do NOT wrap JSON in markdown or code blocks.
       } catch (err) {
         console.error("JSON parse failed:", match[0])
       }
+    }
+
+    if (parsed.intent === "general_question") {
+
+      const answerResponse = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.5,
+            messages: [
+              {
+                role: "system",
+                content: `
+You are a helpful agricultural marketplace voice assistant.
+
+Always reply in simple Hindi.
+
+Keep answers short because the response will be spoken by a voice assistant.
+`
+              },
+              {
+                role: "user",
+                content: parsed.question || parsed.query
+              }
+            ]
+          })
+        }
+      )
+
+      const answerData = await answerResponse.json()
+
+     parsed.answer =
+  answerData.choices?.[0]?.message?.content || "माफ़ कीजिए, मुझे जानकारी नहीं मिली।"
     }
 
     return NextResponse.json(parsed)
