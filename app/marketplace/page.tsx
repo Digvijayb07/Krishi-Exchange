@@ -547,9 +547,8 @@ function MarketplacePageContent() {
   }, [fetchListings]);
 
   useEffect(() => {
-    if (searchParams.get("openListModal")) {
-      setShowListModal(true)
-    }
+    setShowListModal(Boolean(searchParams.get("openListModal")))
+
     const queryParam = searchParams.get("query")
     if (queryParam) {
       setSearchQuery(queryParam)
@@ -557,10 +556,26 @@ function MarketplacePageContent() {
   }, [searchParams])
 
   useEffect(() => {
-    const handleOpenListModal = () => setShowListModal(true)
-    window.addEventListener("voice-assistant-open-list-modal", handleOpenListModal)
+    const handleMarketplaceEvent = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail as {
+        openListModal?: boolean
+        closeListModal?: boolean
+        searchQuery?: string
+      }
+      if (detail?.openListModal) {
+        setShowListModal(true)
+      }
+      if (detail?.closeListModal) {
+        closeListModal()
+      }
+      if (detail?.searchQuery !== undefined) {
+        setSearchQuery(detail.searchQuery)
+      }
+    }
+
+    window.addEventListener("voice-assistant-marketplace", handleMarketplaceEvent)
     return () => {
-      window.removeEventListener("voice-assistant-open-list-modal", handleOpenListModal)
+      window.removeEventListener("voice-assistant-marketplace", handleMarketplaceEvent)
     }
   }, [])
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -79,6 +79,28 @@ export default function VoiceAssistant() {
   }, [])
 
   const router = useRouter()
+  const closePopupTimeout = useRef<number | null>(null)
+
+  const schedulePopupClose = () => {
+    if (typeof window === 'undefined') return
+    if (closePopupTimeout.current) {
+      window.clearTimeout(closePopupTimeout.current)
+      closePopupTimeout.current = null
+    }
+
+    closePopupTimeout.current = window.setTimeout(() => {
+      setIsOpen(false)
+      closePopupTimeout.current = null
+    }, 2000)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (closePopupTimeout.current) {
+        window.clearTimeout(closePopupTimeout.current)
+      }
+    }
+  }, [])
 
   const processVoiceCommand = async (text: string) => {
     try {
@@ -111,17 +133,23 @@ export default function VoiceAssistant() {
 
         case "search_product":
           console.log("Navigating to marketplace with query:", intent.query)
+          if (pathname?.startsWith("/marketplace")) {
+            dispatchMarketplaceEvent({ closeListModal: true, searchQuery: intent.query })
+          }
           router.push(`/marketplace?query=${encodeURIComponent(intent.query)}`)
+          schedulePopupClose()
           break
 
         case "sell_product":
           console.log("Navigating to marketplace to open list modal")
           router.push("/marketplace?openListModal=true")
+          schedulePopupClose()
           break
 
         case "open_marketplace":
           console.log("Navigating to marketplace")
           router.push("/marketplace")
+          schedulePopupClose()
           break
 
         case "general_question":

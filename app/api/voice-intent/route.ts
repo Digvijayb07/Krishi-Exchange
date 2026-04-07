@@ -29,7 +29,14 @@ Rules:
 - Ignore greetings like "hello", "hi", etc.
 - If the user mentions buying something, always return search_product
 - If the user mentions selling something, return sell_product
-- Extract the product name
+- Extract the product name and ALWAYS return it in English.
+- If the user speaks Hindi, Marathi, or Hinglish, translate the product name to English.
+
+Examples:
+"pyaaj" → onion
+"aloo" → potato
+"tamatar" → tomato
+"doodh" → milk
 
 Examples:
 
@@ -40,7 +47,7 @@ User: "buy rice"
 Output: {"intent":"search_product","query":"rice"}
 
 User: "mujhe pyaaj kharidna hai"
-Output: {"intent":"search_product","query":"pyaaj"}
+Output: {"intent":"search_product","query":"onions"}
 
 User: "sell my tomatoes"
 Output: {"intent":"sell_product"}
@@ -68,6 +75,18 @@ Output: {"intent":"sell_product"}
 
 If you cannot determine intent:
 {"intent":"none"}
+
+User: "mujhe pyaaj kharidna hai"
+Output: {"intent":"search_product","query":"onion"}
+
+User: "mujhe aloo chahiye"
+Output: {"intent":"search_product","query":"potato"}
+
+User: "tamatar kharidna hai"
+Output: {"intent":"search_product","query":"tomato"}
+
+User: "buy onions"
+Output: {"intent":"search_product","query":"onion"}
 
 Do NOT wrap JSON in markdown or code blocks.
 `
