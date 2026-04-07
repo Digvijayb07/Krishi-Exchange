@@ -41,7 +41,7 @@ export default function VoiceAssistant() {
         const rec = new SpeechRecognitionAPI()
         rec.continuous = true
         rec.interimResults = true
-        rec.lang = 'en-IN'
+        rec.lang = 'hi-IN'
 
         rec.onresult = (event: any) => {
           let finalTranscript = ''
