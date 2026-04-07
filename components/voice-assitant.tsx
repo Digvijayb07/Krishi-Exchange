@@ -23,16 +23,22 @@ interface SpeechRecognitionEvent extends Event {
 
 export default function VoiceAssistant() {
   const pathname = usePathname()
+
+  // Exclude from disputes page — render inner component conditionally
+  if (pathname === '/disputes') {
+    return null
+  }
+
+  return <VoiceAssistantInner />
+}
+
+function VoiceAssistantInner() {
   const [isOpen, setIsOpen] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [interimTranscript, setInterimTranscript] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
-
-  // Exclude from disputes page
-  if (pathname === '/disputes') {
-    return null
-  }
+  const pathname = usePathname()
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

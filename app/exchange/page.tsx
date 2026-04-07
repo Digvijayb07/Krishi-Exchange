@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/utils/supabase/client";
+import { generateContractPDF } from "@/lib/generateContract";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ExchangeRequest {
@@ -191,6 +192,60 @@ export default function ExchangePage() {
   const [activeTab, setActiveTab] = useState<PageTab>("incoming");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // ── Download contract PDF ──────────────────────────────────────────────────
+  const downloadContract = async (ex: ExchangeRequest) => {
+    setDownloadingId(ex.id);
+    try {
+      // Fetch full buyer profile
+      const { data: buyerProfile } = await supabase
+        .from("profiles")
+        .select("full_name, phone")
+        .eq("id", ex.buyer_id)
+        .single();
+
+      // Fetch farmer profile
+      const farmerId = ex.produce_listings?.farmer_id;
+      const { data: farmerProfile } = farmerId
+        ? await supabase
+            .from("profiles")
+            .select("full_name, phone")
+            .eq("id", farmerId)
+            .single()
+        : { data: null };
+
+      const contractId = `KE-${ex.id.slice(0, 8).toUpperCase()}`;
+      const date = new Date().toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+
+      generateContractPDF({
+        contractId,
+        date,
+        farmerName: farmerProfile?.full_name ?? `Farmer ${farmerId?.slice(0, 6).toUpperCase() ?? "—"}`,
+        farmerPhone: farmerProfile?.phone,
+        farmerLocation: ex.produce_listings?.location,
+        buyerName: buyerProfile?.full_name ?? ex.profiles?.full_name ?? `Buyer ${ex.buyer_id.slice(0, 6).toUpperCase()}`,
+        buyerPhone: buyerProfile?.phone ?? ex.profiles?.phone,
+        cropName: ex.produce_listings?.crop_name ?? "—",
+        quantityRequested: ex.quantity_requested,
+        unit: ex.produce_listings?.unit ?? "kg",
+        pricePerKg: ex.produce_listings?.price_per_kg ?? 0,
+        quality: ex.produce_listings?.quality_grade,
+        listingType: ex.produce_listings?.listing_type ?? "crop",
+        offerCropName: ex.offer_crop_name,
+        offerQuantity: ex.offer_quantity ?? undefined,
+        offerUnit: ex.offer_unit ?? undefined,
+        offerType: ex.offer_type ?? undefined,
+        status: ex.status,
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   // ── Get current user ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -689,6 +744,17 @@ export default function ExchangePage() {
                                     🚚 In Transit
                                   </span>
                                 )}
+
+                                {(ex.status === "accepted" || ex.status === "in_transit" || ex.status === "completed") && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-green-600 text-green-700 hover:bg-green-50 gap-1.5"
+                                    disabled={downloadingId === ex.id}
+                                    onClick={() => downloadContract(ex)}>
+                                    {downloadingId === ex.id ? "Generating…" : "📄 Download Contract"}
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -817,6 +883,17 @@ export default function ExchangePage() {
                           <span className="text-sm text-green-600 font-medium">
                             ✔ Exchange completed
                           </span>
+                        )}
+
+                        {(ex.status === "accepted" || ex.status === "in_transit" || ex.status === "completed") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-600 text-green-700 hover:bg-green-50 gap-1.5"
+                            disabled={downloadingId === ex.id}
+                            onClick={() => downloadContract(ex)}>
+                            {downloadingId === ex.id ? "Generating…" : "📄 Download Contract"}
+                          </Button>
                         )}
                       </div>
                     </div>
