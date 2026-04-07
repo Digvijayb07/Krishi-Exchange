@@ -41,7 +41,7 @@ export default function VoiceAssistant() {
         const rec = new SpeechRecognitionAPI()
         rec.continuous = true
         rec.interimResults = true
-        rec.lang = 'en-US'
+        rec.lang = 'hi-IN'
 
         rec.onresult = (event: any) => {
           let finalTranscript = ''
@@ -76,7 +76,7 @@ export default function VoiceAssistant() {
 
   const shouldOpenMarketplace = (text: string) => {
     const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/gi, ' ')
-    return /\b(sell|selling|sale|buy|purchase|shopping|market)\b/.test(normalized)
+    return /\b(sell|selling|sale|buy|search|find|purchase|market|shop|shopping)\b/.test(normalized)
   }
 
   const shouldOpenListModal = (text: string) => {
@@ -84,19 +84,63 @@ export default function VoiceAssistant() {
     return /\b(sell|selling|sale)\b/.test(normalized)
   }
 
-  const dispatchOpenListModal = () => {
+  const extractSearchQuery = (text: string) => {
+    const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/gi, ' ').trim()
+    const genericKeywords = ['something', 'anything', 'everything', 'stuff', 'items', 'things']
+
+    const patterns = [
+      /(?:buy|search for|search|find|purchase|looking for|want to buy|need to buy|want|need|looking)\s+(.+)/i,
+      /(?:i want to buy|i want to|i need to buy|i need to|please|could you|can you)\s+(.+)/i,
+    ]
+
+    for (const pattern of patterns) {
+      const match = normalized.match(pattern)
+      if (match?.[1]) {
+        const query = match[1].trim()
+        if (!genericKeywords.includes(query) && !genericKeywords.some((word) => query === word || query.startsWith(`${word} `))) {
+          return query
+        }
+        return undefined
+      }
+    }
+
+    const cleaned = normalized
+      .replace(/\b(search|buy|find|purchase|looking for|want to buy|need to buy|want|need|market|shop|shopping)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    if (!cleaned || genericKeywords.includes(cleaned) || genericKeywords.some((word) => cleaned === word || cleaned.startsWith(`${word} `))) {
+      return undefined
+    }
+
+    return cleaned
+  }
+
+  const dispatchMarketplaceEvent = (detail: {
+    openListModal?: boolean
+    searchQuery?: string
+    closeListModal?: boolean
+  }) => {
     if (typeof window === 'undefined') return
-    window.dispatchEvent(new CustomEvent('voice-assistant-open-list-modal'))
+    window.dispatchEvent(new CustomEvent('voice-assistant-marketplace', { detail }))
   }
 
   const handleMarketplaceCommand = (text: string) => {
-    const isSellCommand = shouldOpenListModal(text)
-    if (pathname === '/marketplace') {
-      if (isSellCommand) {
-        dispatchOpenListModal()
-      }
+    const openListModal = shouldOpenListModal(text)
+    const searchQuery = openListModal ? undefined : extractSearchQuery(text)
+    const isMarketplace = pathname?.startsWith('/marketplace')
+
+    if (isMarketplace) {
+      dispatchMarketplaceEvent({
+        openListModal,
+        searchQuery,
+        closeListModal: !openListModal,
+      })
     } else {
-      const url = isSellCommand ? '/marketplace?openListModal=1' : '/marketplace'
+      const params = new URLSearchParams()
+      if (openListModal) params.set('openListModal', '1')
+      if (searchQuery) params.set('query', searchQuery)
+      const url = `/marketplace${params.toString() ? `?${params.toString()}` : ''}`
       router.push(url)
     }
   }
