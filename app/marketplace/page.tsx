@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/app-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -514,9 +515,25 @@ export default function MarketplacePage() {
     setLoadingData(false);
   }, [filterRegion, filterQuality, filterType, searchQuery]);
 
+  const searchParams = useSearchParams()
+
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
+
+  useEffect(() => {
+    if (searchParams.get("openListModal")) {
+      setShowListModal(true)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    const handleOpenListModal = () => setShowListModal(true)
+    window.addEventListener("voice-assistant-open-list-modal", handleOpenListModal)
+    return () => {
+      window.removeEventListener("voice-assistant-open-list-modal", handleOpenListModal)
+    }
+  }, [])
 
   // ── Sorted & filtered listings by distance ─────────────────────────────────
   const sortedListings: ListingWithDistance[] = useMemo(() => {
