@@ -214,10 +214,21 @@ function itemEmoji(
 export default function MarketplacePage() {
   const supabase = createClient();
 
+  // Current user
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
+  }, []);
+
   // Listings state
   const [listings, setListings] = useState<ProduceListing[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+
+  // Remove listing state
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   // List-crop modal
   const [showListModal, setShowListModal] = useState(false);
@@ -303,6 +314,7 @@ export default function MarketplacePage() {
   const [filterRegion, setFilterRegion] = useState("");
   const [filterQuality, setFilterQuality] = useState("");
   const [filterType, setFilterType] = useState<ListingTypeFilter>("all");
+  const [showMyListings, setShowMyListings] = useState(false);
 
   // Buyer location state
   const [buyerLocation, setBuyerLocation] = useState<BuyerLocation | null>(
@@ -321,6 +333,19 @@ export default function MarketplacePage() {
   );
   const [contactLoading, setContactLoading] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
+
+  // ── Remove listing handler ──────────────────────────────────────────────────
+  const handleRemoveListing = async (listingId: string) => {
+    setRemovingId(listingId);
+    setConfirmRemoveId(null);
+    // Delete all exchange_requests for this listing first
+    await supabase.from("exchange_requests").delete().eq("listing_id", listingId);
+    // Delete the listing
+    await supabase.from("produce_listings").delete().eq("id", listingId);
+    // Refresh
+    setListings((prev) => prev.filter((l) => l.id !== listingId));
+    setRemovingId(null);
+  };
 
   // Listing camera capture state
   const [listingCameraOpen, setListingCameraOpen] = useState(false);
@@ -725,6 +750,12 @@ export default function MarketplacePage() {
       return;
     }
 
+    if (selectedListing && user.id === selectedListing.farmer_id) {
+      setBuyError("You cannot place a request on your own listing.");
+      setBuyLoading(false);
+      return;
+    }
+
     // Ensure buyer profile exists
     await supabase
       .from("profiles")
@@ -800,18 +831,26 @@ export default function MarketplacePage() {
     <AppLayout>
       <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Marketplace</h1>
             <p className="text-muted-foreground mt-2">
               Browse and exchange crops, tools &amp; equipment
             </p>
           </div>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={() => setShowListModal(true)}>
-            + List Item
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowMyListings((v) => !v)}
+              className={showMyListings ? "bg-primary/10 border-primary text-primary" : ""}>
+              {showMyListings ? "🌐 All Listings" : "📋 My Listings"}
+            </Button>
+            <Button
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              onClick={() => setShowListModal(true)}>
+              + List Item
+            </Button>
+          </div>
         </div>
 
         {/* Category filter tabs */}
@@ -1052,22 +1091,23 @@ export default function MarketplacePage() {
         )}
 
         {/* Crop Grid */}
-        {!loadingData && sortedListings.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedListings.map((listing) => (
+        {!loadingData && (showMyListings ? sortedListings.filter(l => l.farmer_id === currentUserId) : sortedListings).length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+            {(showMyListings ? sortedListings.filter(l => l.farmer_id === currentUserId) : sortedListings).map((listing) => (
               <Card
                 key={listing.id}
-                className="border-border overflow-hidden hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  {listing.image_url ? (
-                    <div className="rounded-xl overflow-hidden bg-muted aspect-[4/3] mb-4">
+                className="border-border overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+                <CardContent className="p-6 flex flex-col flex-1">
+                  {/* Fixed-height media area — keeps all cards aligned */}
+                  <div className="h-44 mb-4 rounded-xl overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                    {listing.image_url ? (
                       <img src={listing.image_url} alt={listing.crop_name} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="text-5xl mb-4">
-                      {itemEmoji(listing.crop_name, listing.listing_type)}
-                    </div>
-                  )}
+                    ) : (
+                      <span className="text-6xl">
+                        {itemEmoji(listing.crop_name, listing.listing_type)}
+                      </span>
+                    )}
+                  </div>
                   <h3 className="text-xl font-bold text-foreground">
                     {listing.crop_name}
                   </h3>
@@ -1148,7 +1188,7 @@ export default function MarketplacePage() {
                     )}
                   </div>
 
-                  <div className="mt-4 flex gap-2 flex-wrap">
+                  <div className="mt-4 flex gap-2 flex-wrap flex-1">
                     {listing.listing_type === "crop" && (() => {
                       const sugg = getSuggestedPrice(listing.crop_name, listing.location);
                       if (!sugg) return null;
@@ -1181,19 +1221,60 @@ export default function MarketplacePage() {
                       )}
                   </div>
 
-                  <div className="mt-6 flex gap-2">
-                    <Button
-                      className="flex-1 bg-primary hover:bg-primary/90"
-                      onClick={() => openBuyModal(listing)}>
-                      Exchange
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => fetchSellerDetails(listing.farmer_id)}>
-                      Contact
-                    </Button>
-                  </div>
+                  {currentUserId === listing.farmer_id ? (
+                    <div className="mt-auto pt-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
+                          📋 Your Listing
+                        </Badge>
+                      </div>
+                      {confirmRemoveId === listing.id ? (
+                        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+                          <p className="text-xs text-destructive font-medium">
+                            ⚠️ Remove this listing? All pending requests will also be cancelled.
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 text-xs"
+                              onClick={() => setConfirmRemoveId(null)}>
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="flex-1 text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                              disabled={removingId === listing.id}
+                              onClick={() => handleRemoveListing(listing.id)}>
+                              {removingId === listing.id ? "Removing…" : "Yes, Remove"}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-destructive border-destructive/30 hover:bg-destructive/10 text-xs"
+                          onClick={() => setConfirmRemoveId(listing.id)}>
+                          🗑 Remove Listing
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-auto pt-4 flex gap-2">
+                      <Button
+                        className="flex-1 bg-primary hover:bg-primary/90"
+                        onClick={() => openBuyModal(listing)}>
+                        Exchange
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => fetchSellerDetails(listing.farmer_id)}>
+                        Contact
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
