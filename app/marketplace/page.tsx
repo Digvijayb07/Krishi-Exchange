@@ -245,6 +245,7 @@ export default function MarketplacePage() {
   const [buySubmitted, setBuySubmitted] = useState(false);
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
+  const [showFairTradeCalc, setShowFairTradeCalc] = useState(false);
 
   // Mandi API (Market value suggestions)
   const [mandiRecords, setMandiRecords] = useState<any[]>([]);
@@ -292,6 +293,7 @@ export default function MarketplacePage() {
       return {
         range: `₹${min} - ₹${max}/kg`,
         modal: `₹${modal}/kg`,
+        modalNumber: Number(modal),
         source: exactLocation ? `${match.market}, ${match.state}` : `National Avg`,
       };
     }
@@ -704,12 +706,16 @@ export default function MarketplacePage() {
     setBuyForm(defaultBuyForm);
     setBuySubmitted(false);
     setBuyError(null);
+    setShowFairTradeCalc(false);
     setShowBuyModal(true);
   };
 
   const handleBuyChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => setBuyForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  ) => {
+    if (e.target.name === "offer_crop_name") setShowFairTradeCalc(false);
+    setBuyForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  };
 
   const handleBuySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -770,6 +776,7 @@ export default function MarketplacePage() {
     setBuySubmitted(false);
     setBuyError(null);
     setSelectedListing(null);
+    setShowFairTradeCalc(false);
     setBuyForm(defaultBuyForm);
   };
 
@@ -1989,6 +1996,52 @@ export default function MarketplacePage() {
                       ))}
                     </select>
                   </div>
+
+                  {buyForm.offer_type === "crop" && buyForm.offer_crop_name && (() => {
+                    const sugg = getSuggestedPrice(buyForm.offer_crop_name, "");
+                    const requestedQty = parseFloat(buyForm.quantity_requested || "0");
+                    if (!sugg || sugg.modalNumber <= 0 || requestedQty <= 0) return null;
+                    
+                    if (!showFairTradeCalc) {
+                      return (
+                        <div className="mt-2 mb-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="bg-primary/5 text-primary border-primary/20 hover:bg-primary/10 gap-2 w-full"
+                            onClick={() => setShowFairTradeCalc(true)}
+                          >
+                            <span>📊</span> Check Agmarknet Market Value
+                          </Button>
+                        </div>
+                      );
+                    }
+                    
+                    const buyTotalValue = requestedQty * selectedListing.price_per_kg;
+                    const recommendedKgs = (buyTotalValue / sugg.modalNumber).toFixed(2);
+                    
+                    return (
+                      <div className="text-sm font-medium text-amber-900 bg-amber-50 p-2.5 rounded border border-amber-200 mt-2 mb-2 flex flex-col gap-1 shadow-sm animate-in fade-in zoom-in-95">
+                        <span>⚖️ <strong>Fair Trade Hint:</strong> To match the ₹{buyTotalValue.toLocaleString("en-IN")} value of the crop you are requesting, you should offer approx <strong>{recommendedKgs} kg</strong> of {buyForm.offer_crop_name}.</span>
+                        <span className="text-[11px] font-normal text-amber-700 leading-tight">
+                          (Based on {buyForm.offer_crop_name} market avg of ₹{sugg.modalNumber}/kg vs requested value: ₹{buyTotalValue})
+                        </span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 w-fit text-xs bg-amber-100 hover:bg-amber-200 text-amber-900 mt-1"
+                          onClick={() => {
+                            setBuyForm(prev => ({...prev, offer_quantity: recommendedKgs, offer_unit: 'kg'}));
+                          }}
+                        >
+                          Use Suggestion 👇
+                        </Button>
+                      </div>
+                    );
+                  })()}
+
                   {/* Crop offer: quantity + unit */}
                   {buyForm.offer_type === "crop" && (
                     <div className="grid grid-cols-2 gap-3">
