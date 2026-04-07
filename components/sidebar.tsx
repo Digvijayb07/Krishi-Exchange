@@ -7,12 +7,12 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 
 const menuItems = [
-  { icon: "📊", label: "Dashboard", href: "/" },
-  { icon: "👤", label: "My Profile", href: "/profile" },
-  { icon: "🛒", label: "Marketplace", href: "/marketplace" },
-  { icon: "🤝", label: "Exchange", href: "/exchange" },
-  { icon: "⭐", label: "Trust Profile", href: "/trust-profile" },
-  { icon: "⚖️", label: "Disputes", href: "/disputes" },
+  { icon: "📊", label: "Dashboard", href: "/", color: "#16a34a" },
+  { icon: "👤", label: "My Profile", href: "/profile", color: "#2563eb" },
+  { icon: "🛒", label: "Marketplace", href: "/marketplace", color: "#ea580c" },
+  { icon: "🤝", label: "Exchange", href: "/exchange", color: "#9333ea" },
+  { icon: "⭐", label: "Trust Profile", href: "/trust-profile", color: "#eab308" },
+  { icon: "⚖️", label: "Disputes", href: "/disputes", color: "#dc2626" },
 ];
 
 interface SidebarProps {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/app-layout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -212,7 +212,7 @@ function itemEmoji(
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
-export default function MarketplacePage() {
+function MarketplacePageContent() {
   const supabase = createClient();
 
   // Current user
@@ -2460,5 +2460,13 @@ export default function MarketplacePage() {
         </div>
       )}
     </AppLayout>
+  );
+}
+
+export default function MarketplacePage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
+      <MarketplacePageContent />
+    </Suspense>
   );
 }
