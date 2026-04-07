@@ -4,7 +4,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* ── Krishi Exchange Green Agriculture Palette ── */
   --background: #f8faf5;
   --foreground: #1a2e05;
   --card: rgba(255, 255, 255, 0.85);

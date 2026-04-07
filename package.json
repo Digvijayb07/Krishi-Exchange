@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."
-  },
+  }, 
   "dependencies": {
     "@deepgram/sdk": "^5.0.0",
     "@hookform/resolvers": "^3.9.1",

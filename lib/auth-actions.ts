@@ -21,8 +21,6 @@ export async function login(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-
-  // Redirect to the original page or home
   redirect(redirectTo && redirectTo !== "/login" ? redirectTo : "/");
 }
 

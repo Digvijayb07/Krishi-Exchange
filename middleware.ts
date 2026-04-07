@@ -15,8 +15,6 @@ export default async function middleware(request: NextRequest) {
   if (isPublicRoute || isAuthRoute) {
     return NextResponse.next();
   }
-
-  // Check authentication for protected routes
   let response = NextResponse.next({
     request: {
       headers: request.headers,
