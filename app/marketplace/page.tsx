@@ -550,6 +550,10 @@ export default function MarketplacePage() {
     if (searchParams.get("openListModal")) {
       setShowListModal(true)
     }
+    const queryParam = searchParams.get("query")
+    if (queryParam) {
+      setSearchQuery(queryParam)
+    }
   }, [searchParams])
 
   useEffect(() => {

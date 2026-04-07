@@ -29,6 +29,10 @@ export default function VoiceAssistant() {
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
 
+  const [messages, setMessages] = useState<
+    { role: "user" | "assistant"; text: string }[]
+  >([])
+
   // Exclude from disputes page
   if (pathname === '/disputes') {
     return null
@@ -41,7 +45,7 @@ export default function VoiceAssistant() {
         const rec = new SpeechRecognitionAPI()
         rec.continuous = true
         rec.interimResults = true
-        rec.lang = 'hi-IN'
+        rec.lang = 'en-IN'
 
         rec.onresult = (event: any) => {
           let finalTranscript = ''
@@ -54,11 +58,13 @@ export default function VoiceAssistant() {
               interim += transcript
             }
           }
-          if (finalTranscript) {
-            setTranscript((prev) => prev + finalTranscript)
-            if (shouldOpenMarketplace(finalTranscript)) {
-              handleMarketplaceCommand(finalTranscript)
-            }
+          if (finalTranscript.trim().length > 3) {
+            setMessages((prev) => [
+              ...prev,
+              { role: "user", text: finalTranscript }
+            ])
+
+            processVoiceCommand(finalTranscript.trim())
           }
           setInterimTranscript(interim)
         }
@@ -74,46 +80,71 @@ export default function VoiceAssistant() {
 
   const router = useRouter()
 
-  const shouldOpenMarketplace = (text: string) => {
-    const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/gi, ' ')
-    return /\b(sell|selling|sale|buy|search|find|purchase|market|shop|shopping)\b/.test(normalized)
-  }
+  const processVoiceCommand = async (text: string) => {
+    try {
 
-  const shouldOpenListModal = (text: string) => {
-    const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/gi, ' ')
-    return /\b(sell|selling|sale)\b/.test(normalized)
-  }
+      const res = await fetch("/api/voice-intent", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ text })
+      })
 
-  const extractSearchQuery = (text: string) => {
-    const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/gi, ' ').trim()
-    const genericKeywords = ['something', 'anything', 'everything', 'stuff', 'items', 'things']
+      const intent = await res.json()
 
-    const patterns = [
-      /(?:buy|search for|search|find|purchase|looking for|want to buy|need to buy|want|need|looking)\s+(.+)/i,
-      /(?:i want to buy|i want to|i need to buy|i need to|please|could you|can you)\s+(.+)/i,
-    ]
+      console.log("Voice Intent FULL:", JSON.stringify(intent, null, 2))
 
-    for (const pattern of patterns) {
-      const match = normalized.match(pattern)
-      if (match?.[1]) {
-        const query = match[1].trim()
-        if (!genericKeywords.includes(query) && !genericKeywords.some((word) => query === word || query.startsWith(`${word} `))) {
-          return query
-        }
-        return undefined
+      if (intent.intent === "none") {
+
+      if (text.toLowerCase().includes("buy")) {
+        intent.intent = "search_product"
       }
+
+      if (text.toLowerCase().includes("sell")) {
+        intent.intent = "sell_product"
+      }
+
+      }
+
+      switch (intent.intent) {
+
+        case "search_product":
+          console.log("Navigating to marketplace with query:", intent.query)
+          router.push(`/marketplace?query=${encodeURIComponent(intent.query)}`)
+          break
+
+        case "sell_product":
+          console.log("Navigating to marketplace to open list modal")
+          router.push("/marketplace?openListModal=true")
+          break
+
+        case "open_marketplace":
+          console.log("Navigating to marketplace")
+          router.push("/marketplace")
+          break
+
+        case "general_question":
+          if (intent.answer) {
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", text: intent.answer }
+            ])
+
+            speechSynthesis.speak(
+              new SpeechSynthesisUtterance(intent.answer)
+            )
+          }
+          break
+
+        default:
+          console.log("No actionable intent detected:", intent.intent)
+      }
+
     }
-
-    const cleaned = normalized
-      .replace(/\b(search|buy|find|purchase|looking for|want to buy|need to buy|want|need|market|shop|shopping)\b/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-
-    if (!cleaned || genericKeywords.includes(cleaned) || genericKeywords.some((word) => cleaned === word || cleaned.startsWith(`${word} `))) {
-      return undefined
+    catch (err) {
+      console.error("Voice command error:", err)
     }
-
-    return cleaned
   }
 
   const dispatchMarketplaceEvent = (detail: {
@@ -123,26 +154,6 @@ export default function VoiceAssistant() {
   }) => {
     if (typeof window === 'undefined') return
     window.dispatchEvent(new CustomEvent('voice-assistant-marketplace', { detail }))
-  }
-
-  const handleMarketplaceCommand = (text: string) => {
-    const openListModal = shouldOpenListModal(text)
-    const searchQuery = openListModal ? undefined : extractSearchQuery(text)
-    const isMarketplace = pathname?.startsWith('/marketplace')
-
-    if (isMarketplace) {
-      dispatchMarketplaceEvent({
-        openListModal,
-        searchQuery,
-        closeListModal: !openListModal,
-      })
-    } else {
-      const params = new URLSearchParams()
-      if (openListModal) params.set('openListModal', '1')
-      if (searchQuery) params.set('query', searchQuery)
-      const url = `/marketplace${params.toString() ? `?${params.toString()}` : ''}`
-      router.push(url)
-    }
   }
 
   const startListening = () => {
@@ -203,11 +214,25 @@ export default function VoiceAssistant() {
               </Button>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg min-h-[300px] max-h-[400px] overflow-y-auto flex-1">
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {transcript}
-                <span className="text-gray-500 italic">{interimTranscript}</span>
-                {!transcript && !interimTranscript && <span className="text-gray-400">Start speaking to see transcript...</span>}
-              </p>
+              <div className="space-y-3">
+                {messages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`text-sm p-2 rounded-lg ${msg.role === "user"
+                        ? "bg-blue-100 text-right"
+                        : "bg-gray-200"
+                      }`}
+                  >
+                    {msg.text}
+                  </div>
+                ))}
+
+                {interimTranscript && (
+                  <div className="text-gray-400 italic">
+                    {interimTranscript}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </DialogContent>
