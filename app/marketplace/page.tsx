@@ -547,16 +547,35 @@ export default function MarketplacePage() {
   }, [fetchListings]);
 
   useEffect(() => {
-    if (searchParams.get("openListModal")) {
+    const query = searchParams.get("query")
+    const openList = searchParams.get("openListModal")
+    if (query) {
+      setSearchQuery(query)
+      setShowListModal(false)
+    }
+    if (openList) {
       setShowListModal(true)
     }
   }, [searchParams])
 
   useEffect(() => {
-    const handleOpenListModal = () => setShowListModal(true)
-    window.addEventListener("voice-assistant-open-list-modal", handleOpenListModal)
+    const handleVoiceAssistantMarketplace = (event: any) => {
+      const detail = event.detail || {}
+      if (detail.searchQuery) {
+        setSearchQuery(detail.searchQuery)
+        setShowListModal(false)
+      }
+      if (detail.openListModal) {
+        setShowListModal(true)
+      }
+      if (detail.closeListModal && !detail.openListModal) {
+        setShowListModal(false)
+      }
+    }
+
+    window.addEventListener("voice-assistant-marketplace", handleVoiceAssistantMarketplace)
     return () => {
-      window.removeEventListener("voice-assistant-open-list-modal", handleOpenListModal)
+      window.removeEventListener("voice-assistant-marketplace", handleVoiceAssistantMarketplace)
     }
   }, [])
 
