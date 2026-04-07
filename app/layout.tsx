@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import GoogleTranslateLoader from "@/components/google-translate";
+import VoiceAssistant from "@/components/voice-assitant";
 import "./globals.css";
 
 const inter = Inter({
@@ -79,6 +80,7 @@ export default function RootLayout({
         />
         <GoogleTranslateLoader />
         {children}
+        <VoiceAssistant />
         <Analytics />
       </body>
     </html>
