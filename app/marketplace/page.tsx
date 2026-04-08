@@ -1932,8 +1932,8 @@ function MarketplacePageContent() {
           onClick={(e) => {
             if (e.target === e.currentTarget) closeBuyModal();
           }}>
-          <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+          <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-md max-h-[88vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
                 <h2 className="text-xl font-bold text-foreground">
                   Place Exchange Request
@@ -1949,6 +1949,7 @@ function MarketplacePageContent() {
               </button>
             </div>
 
+            <div className="overflow-y-auto flex-1">
             {buySubmitted ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <div className="text-6xl mb-4">🎉</div>
@@ -2288,6 +2289,7 @@ function MarketplacePageContent() {
                 </div>
               </form>
             )}
+            </div>
           </div>
         </div>
       )}

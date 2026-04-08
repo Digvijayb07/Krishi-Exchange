@@ -33,12 +33,6 @@ export default function VoiceAssistant() {
     { role: "user" | "assistant"; text: string }[]
   >([])
 
-
-  // Exclude from disputes page
-  if (pathname === '/disputes') {
-    return null
-  }
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -103,6 +97,12 @@ export default function VoiceAssistant() {
       }
     }
   }, [])
+
+  // Exclude voice assistant from disputes and exchange pages — must be AFTER all hooks
+  const excludedPaths = ['/disputes', '/exchange']
+  if (excludedPaths.some(p => pathname?.startsWith(p))) {
+    return null
+  }
 
   const speakText = (text: string) => {
     if (audioRef.current) {
