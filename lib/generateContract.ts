@@ -196,9 +196,9 @@ export function generateContractPDF(data: ContractData): void {
     ],
     [
       "Price / Unit",
-      `₹${data.pricePerKg.toFixed(2)}`,
+      `Rs. ${data.pricePerKg.toFixed(2)} / ${data.unit}`,
       "Estimated Total",
-      `₹${totalValue.toLocaleString("en-IN")}`,
+      `Rs. ${totalValue.toLocaleString("en-IN")}`,
     ],
     [
       "Seller Location",
@@ -282,50 +282,6 @@ export function generateContractPDF(data: ContractData): void {
     y += 5.5;
   });
 
-  y += 4;
-
-  // ── Signature blocks ────────────────────────────────────────────────────
-  y = sectionHeader(doc, "Signatures", y, margin);
-  y += 6;
-
-  // Seller sig
-  doc.setFillColor(248, 255, 248);
-  doc.setDrawColor(34, 139, 34);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, 75, 30, 2, 2, "FD");
-  doc.setTextColor(22, 101, 52);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.text("Seller (Farmer)", margin + 4, y + 6);
-  doc.setTextColor(60, 60, 60);
-  doc.setFont("helvetica", "normal");
-  doc.text(data.farmerName, margin + 4, y + 13);
-  doc.setTextColor(120, 120, 120);
-  doc.setFontSize(7);
-  doc.text("Digitally agreed via Krishi Exchange", margin + 4, y + 20);
-  doc.text(`Date: ${data.date}`, margin + 4, y + 26);
-
-  // Buyer sig
-  doc.setFillColor(239, 246, 255);
-  doc.setDrawColor(37, 99, 235);
-  doc.roundedRect(pageWidth - margin - 75, y, 75, 30, 2, 2, "FD");
-  doc.setTextColor(37, 99, 235);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.text("Buyer", pageWidth - margin - 71, y + 6);
-  doc.setTextColor(60, 60, 60);
-  doc.setFont("helvetica", "normal");
-  doc.text(data.buyerName, pageWidth - margin - 71, y + 13);
-  doc.setTextColor(120, 120, 120);
-  doc.setFontSize(7);
-  doc.text(
-    "Digitally agreed via Krishi Exchange",
-    pageWidth - margin - 71,
-    y + 20
-  );
-  doc.text(`Date: ${data.date}`, pageWidth - margin - 71, y + 26);
-
-  y += 38;
 
   // ── Footer ──────────────────────────────────────────────────────────────
   drawLine(doc, y, margin, pageWidth);
