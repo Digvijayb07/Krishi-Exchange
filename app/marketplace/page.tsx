@@ -107,7 +107,7 @@ const defaultListingForm: ListingForm = {
   quantity: "",
   unit: "kg",
   price: "",
-  quality: "",
+  quality: "Standard",
   region: "",
   description: "",
   contactNumber: "",
@@ -547,11 +547,18 @@ function MarketplacePageContent() {
   }, [fetchListings]);
 
   useEffect(() => {
-    setShowListModal(Boolean(searchParams.get("openListModal")))
-
+    const hasOpenListModal = searchParams.get("openListModal")
     const queryParam = searchParams.get("query")
+    const itemParam = searchParams.get("item")
+
+    setShowListModal(Boolean(hasOpenListModal))
+
     if (queryParam) {
       setSearchQuery(queryParam)
+    }
+
+    if (itemParam && hasOpenListModal) {
+      setListForm((prev) => ({ ...prev, cropName: itemParam }))
     }
   }, [searchParams])
 
@@ -1631,27 +1638,6 @@ function MarketplacePageContent() {
                   </div>
                 )}
 
-                {/* Crop-only: quality grade */}
-                {listForm.listingType === "crop" && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">
-                      Quality Grade <span className="text-destructive">*</span>
-                    </label>
-                    <select
-                      name="quality"
-                      value={listForm.quality}
-                      onChange={handleListChange}
-                      required
-                      className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50">
-                      <option value="">Select quality</option>
-                      {QUALITIES.map((q) => (
-                        <option key={q} value={q}>
-                          {q}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">
                     Region <span className="text-destructive">*</span>

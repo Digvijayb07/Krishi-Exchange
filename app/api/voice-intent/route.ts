@@ -58,10 +58,10 @@ User: "mujhe pyaaj kharidna hai"
 Output: {"intent":"search_product","query":"onions"}
 
 User: "sell my tomatoes"
-Output: {"intent":"sell_product"}
+Output: {"intent":"sell_product","item":"tomatoes"}
 
 User: "I want to sell potatoes"
-Output: {"intent":"sell_product"}
+Output: {"intent":"sell_product","item":"potatoes"}
 
 User: "open marketplace"
 Output: {"intent":"open_marketplace"}
@@ -76,7 +76,7 @@ User: "Hi I want rice"
 Output: {"intent":"search_product","query":"rice"}
 
 User: "I want to sell wheat"
-Output: {"intent":"sell_product"}
+Output: {"intent":"sell_product","item":"wheat"}
 
 User: "I want to sell something"
 Output: {"intent":"sell_product"}

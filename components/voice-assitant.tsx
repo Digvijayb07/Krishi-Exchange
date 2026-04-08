@@ -33,6 +33,7 @@ export default function VoiceAssistant() {
     { role: "user" | "assistant"; text: string }[]
   >([])
 
+
   // Exclude from disputes page
   if (pathname === '/disputes') {
     return null
@@ -80,6 +81,7 @@ export default function VoiceAssistant() {
 
   const router = useRouter()
   const closePopupTimeout = useRef<number | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const schedulePopupClose = () => {
     if (typeof window === 'undefined') return
@@ -102,6 +104,20 @@ export default function VoiceAssistant() {
     }
   }, [])
 
+  const speakText = (text: string) => {
+    if (audioRef.current) {
+      speechSynthesis.cancel()
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text)
+
+    utterance.lang = "hi-IN"   // Hindi voice
+    utterance.rate = 1
+    utterance.pitch = 1
+
+    speechSynthesis.speak(utterance)
+  }
+
   const processVoiceCommand = async (text: string) => {
     try {
 
@@ -119,13 +135,13 @@ export default function VoiceAssistant() {
 
       if (intent.intent === "none") {
 
-      if (text.toLowerCase().includes("buy")) {
-        intent.intent = "search_product"
-      }
+        if (text.toLowerCase().includes("buy")) {
+          intent.intent = "search_product"
+        }
 
-      if (text.toLowerCase().includes("sell")) {
-        intent.intent = "sell_product"
-      }
+        if (text.toLowerCase().includes("sell")) {
+          intent.intent = "sell_product"
+        }
 
       }
 
@@ -142,7 +158,7 @@ export default function VoiceAssistant() {
 
         case "sell_product":
           console.log("Navigating to marketplace to open list modal")
-          router.push("/marketplace?openListModal=true")
+          router.push(`/marketplace?openListModal=true${intent.item ? `&item=${encodeURIComponent(intent.item)}` : ''}`)
           schedulePopupClose()
           break
 
@@ -159,9 +175,7 @@ export default function VoiceAssistant() {
               { role: "assistant", text: intent.answer }
             ])
 
-            speechSynthesis.speak(
-              new SpeechSynthesisUtterance(intent.answer)
-            )
+            speakText(intent.answer)
           }
           break
 
@@ -247,8 +261,8 @@ export default function VoiceAssistant() {
                   <div
                     key={i}
                     className={`text-sm p-2 rounded-lg ${msg.role === "user"
-                        ? "bg-blue-100 text-right"
-                        : "bg-gray-200"
+                      ? "bg-blue-100 text-right"
+                      : "bg-gray-200"
                       }`}
                   >
                     {msg.text}
